@@ -27,6 +27,9 @@ const resolvedTokensPath = isBuildPhase
       path.join(resolvedDataDir, 'mission-control-tokens.json'))
   : (process.env.MISSION_CONTROL_TOKENS_PATH ||
       path.join(resolvedDataDir, 'mission-control-tokens.json'))
+const resolvedServerPidFile =
+  process.env.MC_SERVER_PID_FILE ||
+  path.join(process.cwd(), '.next', 'standalone', 'server.pid')
 const defaultOpenClawStateDir = path.join(os.homedir(), '.openclaw')
 const explicitOpenClawConfigPath =
   process.env.OPENCLAW_CONFIG_PATH ||
@@ -73,6 +76,7 @@ export const config = {
   dataDir: resolvedDataDir,
   dbPath: resolvedDbPath,
   tokensPath: resolvedTokensPath,
+  serverPidFile: resolvedServerPidFile,
   // Keep openclawHome as a legacy alias for existing code paths.
   openclawHome: openclawStateDir,
   openclawStateDir,

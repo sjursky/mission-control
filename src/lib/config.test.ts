@@ -12,6 +12,7 @@ async function loadConfigWithEnv(env: Record<string, string | undefined>) {
     MISSION_CONTROL_BUILD_TOKENS_PATH: process.env.MISSION_CONTROL_BUILD_TOKENS_PATH,
     MISSION_CONTROL_DB_PATH: process.env.MISSION_CONTROL_DB_PATH,
     MISSION_CONTROL_TOKENS_PATH: process.env.MISSION_CONTROL_TOKENS_PATH,
+    MC_SERVER_PID_FILE: process.env.MC_SERVER_PID_FILE,
     NEXT_PHASE: process.env.NEXT_PHASE,
   }
 
@@ -42,6 +43,9 @@ async function loadConfigWithEnv(env: Record<string, string | undefined>) {
 
   if (original.MISSION_CONTROL_TOKENS_PATH === undefined) delete process.env.MISSION_CONTROL_TOKENS_PATH
   else process.env.MISSION_CONTROL_TOKENS_PATH = original.MISSION_CONTROL_TOKENS_PATH
+
+  if (original.MC_SERVER_PID_FILE === undefined) delete process.env.MC_SERVER_PID_FILE
+  else process.env.MC_SERVER_PID_FILE = original.MC_SERVER_PID_FILE
 
   if (original.NEXT_PHASE === undefined) delete process.env.NEXT_PHASE
   else process.env.NEXT_PHASE = original.NEXT_PHASE
@@ -106,5 +110,13 @@ describe('config data paths', () => {
     expect(config.dataDir).toMatch(new RegExp(`^${expectedBuildRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/worker-\\d+$`))
     expect(config.dbPath).toBe('/tmp/build.db')
     expect(config.tokensPath).toBe('/tmp/build-tokens.json')
+  })
+
+  it('uses MC_SERVER_PID_FILE when configured', async () => {
+    const config = await loadConfigWithEnv({
+      MC_SERVER_PID_FILE: '/tmp/custom-server.pid',
+    })
+
+    expect(config.serverPidFile).toBe('/tmp/custom-server.pid')
   })
 })
