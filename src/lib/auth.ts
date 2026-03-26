@@ -456,9 +456,15 @@ export function getUserFromRequest(request: Request): User | null {
 
   // Check API key - DB override first, then env var
   const apiKey = extractApiKeyFromHeaders(request.headers)
-  const configuredApiKey = resolveActiveApiKey()
+  const resolved = resolveActiveApiKey()
 
-  if (configuredApiKey && apiKey && safeCompare(apiKey, configuredApiKey)) {
+  const globalKeyMatch = !!resolved && !!apiKey && (
+    'hash' in resolved
+      ? safeCompare(hashApiKey(apiKey), resolved.hash)
+      : safeCompare(apiKey, resolved.raw)
+  )
+
+  if (globalKeyMatch) {
     // FR-D2: Log warning when global admin API key is used.
     // Prefer agent-scoped keys (POST /api/agents/{id}/keys) for least-privilege access.
     try {
@@ -551,17 +557,31 @@ export function getUserFromRequest(request: Request): User | null {
 /**
  * Resolve the active API key: check DB settings override first, then env var.
  */
-function resolveActiveApiKey(): string {
+/**
+ * Resolve the active global API key for comparison.
+ * Returns { hash, source } when a DB-hashed key is available,
+ * or { raw, source } for env-var / legacy plaintext DB keys.
+ */
+function resolveActiveApiKey(): { hash: string; source: 'database' } | { raw: string; source: 'database' | 'environment' } | null {
   try {
     const db = getDatabase()
+    // Prefer hash-based storage (new)
+    const hashRow = db.prepare(
+      "SELECT value FROM settings WHERE key = 'security.api_key_hash'"
+    ).get() as { value: string } | undefined
+    if (hashRow?.value) return { hash: hashRow.value, source: 'database' }
+
+    // Legacy plaintext fallback — migrate on next rotation
     const row = db.prepare(
       "SELECT value FROM settings WHERE key = 'security.api_key'"
     ).get() as { value: string } | undefined
-    if (row?.value) return row.value
+    if (row?.value) return { raw: row.value, source: 'database' }
   } catch {
     // DB not ready yet — fall back to env
   }
-  return (process.env.API_KEY || '').trim()
+  const envKey = (process.env.API_KEY || '').trim()
+  if (envKey) return { raw: envKey, source: 'environment' }
+  return null
 }
 
 function extractApiKeyFromHeaders(headers: Headers): string | null {
